@@ -10,8 +10,9 @@ import (
 // The DepartureStore contains all departures
 type DepartureStore struct {
 	Store
-	departures map[string]models.Departure
-	stations   map[string]map[string]struct{}
+	departures   map[string]models.Departure
+	stations     map[string]map[string]struct{}
+	uic_stations map[string]map[string]struct{}
 }
 
 // ProcessDeparture adds or updates a departure in a departure store
@@ -63,6 +64,7 @@ func (store *DepartureStore) ProcessDeparture(newDeparture models.Departure) {
 	store.Lock()
 	store.departures[newDeparture.ID] = newDeparture
 	store.updateStationReference(newDeparture.Station.Code, newDeparture.ID)
+	store.updateUicStationReference(newDeparture.Station.UICCode, newDeparture.ID)
 	store.Unlock()
 
 	store.Counters.Processed++
@@ -81,11 +83,25 @@ func (store *DepartureStore) updateStationReference(station, ID string) {
 
 }
 
+func (store *DepartureStore) updateUicStationReference(station, ID string) {
+	_, stationExists := store.uic_stations[station]
+	if !stationExists {
+		store.uic_stations[station] = make(map[string]struct{})
+	}
+
+	_, exists := store.uic_stations[station][ID]
+	if !exists {
+		store.uic_stations[station][ID] = struct{}{}
+	}
+
+}
+
 // InitStore initializes the departure store by creating the departures map
 // and sets the downtime detection config
 func (store *DepartureStore) InitStore() {
 	store.departures = make(map[string]models.Departure)
 	store.stations = make(map[string]map[string]struct{})
+	store.uic_stations = make(map[string]map[string]struct{})
 
 	store.DowntimeDetection.MinAverage = float64(1) / 60       // One message per minute
 	store.DowntimeDetection.MinAverageNight = float64(1) / 600 // One message per 10 minutes
@@ -107,6 +123,27 @@ func (store *DepartureStore) GetNumberOfDepartures() int {
 func (store *DepartureStore) GetAllDepartures() map[string]models.Departure {
 	store.RLock()
 	departures := store.departures
+	store.RUnlock()
+
+	return departures
+}
+
+// GetUicDepartures returns all departures for a given station by UIC code
+func (store *DepartureStore) GetUicStationDepartures(station string, includeHidden bool) []models.Departure {
+	var departures []models.Departure
+
+	store.RLock()
+	uicServices := store.uic_stations[station]
+
+	for ID := range uicServices {
+		departure, found := store.departures[ID]
+
+		if found {
+			if includeHidden || !departure.Hidden {
+				departures = append(departures, departure)
+			}
+		}
+	}
 	store.RUnlock()
 
 	return departures
@@ -158,6 +195,7 @@ func (store *DepartureStore) ReadStore() error {
 
 	for _, departure := range store.departures {
 		store.updateStationReference(departure.Station.Code, departure.ID)
+		store.updateUicStationReference(departure.Station.UICCode, departure.ID)
 	}
 
 	return nil
@@ -188,11 +226,19 @@ func (store *DepartureStore) deleteDeparture(departure models.Departure) {
 	delete(store.departures, departure.ID)
 
 	_, stationExists := store.stations[departure.Station.Code]
+	_, uicStationExists := store.uic_stations[departure.Station.UICCode]
 
 	if stationExists {
 		_, exists := store.stations[departure.Station.Code][departure.ID]
 		if exists {
 			delete(store.stations[departure.Station.Code], departure.ID)
+		}
+	}
+
+	if uicStationExists {
+		_, exists := store.uic_stations[departure.Station.UICCode][departure.ID]
+		if exists {
+			delete(store.uic_stations[departure.Station.UICCode], departure.ID)
 		}
 	}
 

@@ -23,16 +23,11 @@ func departureCounters(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func departuresStation(w http.ResponseWriter, r *http.Request) {
+func renderDepartures(w http.ResponseWriter, r *http.Request, departures []models.Departure) {
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	station := vars["station"]
 	language := getLanguageVar(r.URL)
 	verbose := getBooleanQueryParameter(r.URL, "verbose", false)
-
-	departures := stores.Stores.DepartureStore.GetStationDepartures(station, false)
 
 	// Sort departures on departure time, or on planned destination when departure times are equal
 	sort.Slice(departures, func(i, j int) bool {
@@ -45,6 +40,20 @@ func departuresStation(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(wrapDeparturesStatus("departures", departuresToJSON(departures, language, verbose)))
+}
+
+func departuresStation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	station := vars["station"]
+
+	renderDepartures(w, r, stores.Stores.DepartureStore.GetStationDepartures(station, false))
+}
+
+func departuresUicStation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	station := vars["station"]
+
+	renderDepartures(w, r, stores.Stores.DepartureStore.GetUicStationDepartures(station, false))
 }
 
 func departureDetails(w http.ResponseWriter, r *http.Request) {

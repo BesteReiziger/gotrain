@@ -36,9 +36,9 @@ func TestNormalizedMaterialNumber(t *testing.T) {
 }
 
 func TestStationsString(t *testing.T) {
-	stationRtd := Station{Code: "RTD", NameShort: "R'dam C.", NameMedium: "Rotterdam C.", NameLong: "Rotterdam Centraal"}
-	stationAsd := Station{Code: "ASD", NameShort: "A'dam C.", NameMedium: "Amsterdam C.", NameLong: "Amsterdam Centraal"}
-	stationUt := Station{Code: "UT", NameShort: "Utrecht C.", NameMedium: "Utrecht C.", NameLong: "Utrecht Centraal"}
+	stationRtd := Station{Code: "RTD", NameShort: "R'dam C.", NameMedium: "Rotterdam C.", NameLong: "Rotterdam Centraal", UICCode: "8400530"}
+	stationAsd := Station{Code: "ASD", NameShort: "A'dam C.", NameMedium: "Amsterdam C.", NameLong: "Amsterdam Centraal", UICCode: " 8400058"}
+	stationUt := Station{Code: "UT", NameShort: "Utrecht C.", NameMedium: "Utrecht C.", NameLong: "Utrecht Centraal", UICCode: "8400621"}
 
 	tables := []struct {
 		stations     []Station
